@@ -1,0 +1,18 @@
+### IntelliJ IDEA ###
+/.idea/
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+/.gradle
+/buildSrc/.gradle
+/.idea
+build/**
+modules/*/build/**
+modules/*/out/**
+**/build
+/.run/
+/dependencies
