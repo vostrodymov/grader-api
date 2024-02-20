@@ -3,14 +3,13 @@ package ru.vostrodymov.grader.v3.api.query;
 
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
-import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.EntityPathBase;
-import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.*;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.Getter;
 import ru.vostrodymov.grader.v3.api.converters.ConverterStore;
 import ru.vostrodymov.grader.v3.api.filter.*;
+import ru.vostrodymov.grader.v3.api.types.SortableEnumerator;
 
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
@@ -60,7 +59,16 @@ public abstract class BaseQuery<T> extends BaseQueryBuilder {
         return jpa.fetchFirst();
     }
 
-    protected Predicate build(List<WhereDefinition> whereList) {
+    public void save(T item) {
+        getEntityManager().persist(item);
+        getEntityManager().flush();
+    }
+
+    public BooleanExpression[] build(List<WhereDefinition> whereList) {
+        return new BooleanExpression[]{doBuild(whereList)};
+    }
+
+    protected BooleanExpression doBuild(List<WhereDefinition> whereList) {
         BooleanExpression expression = Expressions.ONE.eq(Expressions.ONE);
 
         var expressions = prepare(whereList);
@@ -91,10 +99,26 @@ public abstract class BaseQuery<T> extends BaseQueryBuilder {
 
     protected abstract OrderSpecifier<?> toOrderExpression(OrderDefinition order);
 
-    protected abstract EntityPathBase<T> getEntityPath();
+    /**
+     * Метод построения case для верной сортировки по локализованному значению
+     */
+    protected <R extends Enum<R> & SortableEnumerator> StringExpression orderCase(EnumPath<R> field,
+                                                                                  Class<R> enumClass) {
+        var values = enumClass.getEnumConstants();
+        CaseBuilder.Cases<String, StringExpression> casesValue = null;
+        for (var el : values) {
+            var val = (SortableEnumerator) el;
+            casesValue = casesValue != null
+                    ? casesValue.when(field.eq(el)).then(val.getLabel())
+                    : Expressions.cases().when(field.eq(el)).then(val.getLabel());
+        }
+        return casesValue.otherwise("");
+    }
 
     protected JPAQuery<T> takeQueryFactory(QueryDefinition query) {
         return new JPAQueryFactory(entityManager)
                 .selectFrom(getEntityPath());
     }
+
+    protected abstract EntityPathBase<T> getEntityPath();
 }
